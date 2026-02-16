@@ -71,7 +71,7 @@ jobs:
           fi
 
           # Clean PR body:
-          # - Remove Copilot HTML comments
+          # - Remove Copilot HTML comments block (if present)
           # - Remove '---' separators
           # - Remove CRLF
           # - Collapse multiple blank lines
@@ -81,65 +81,51 @@ jobs:
             | sed 's/\r//g' \
             | awk 'NF{blank=0} !NF{blank++} blank<2')
 
-          # Convert Markdown → HTML (tight spacing, no block inflation)
+          # Convert Markdown -> compact HTML
+          # Strategy:
+          # - "# Heading" -> bold line (no h2 margins)
+          # - "- [x]/[ ]" -> ✓ / ☐
+          # - "- bullet" (and "  - bullet") -> • bullet (no ul padding)
+          # - Everything else -> normal div line
           HTML_BODY=$(echo "$CLEAN_BODY" | awk '
-          BEGIN { in_list=0 }
           {
-            # Markdown section header
             if ($0 ~ /^# /) {
-              if (in_list==1) { print "</ul>"; in_list=0 }
               sub(/^# /, "")
-              print "<h2>" $0 "</h2>"
+              print "<div><strong>" $0 "</strong></div>"
               next
             }
 
-            # Nested bullet
-            if ($0 ~ /^  - /) {
-              sub(/^  - /, "")
-              print "<li style=\"margin-left:16px;\">" $0 "</li>"
-              next
-            }
-
-            # Checked checklist
             if ($0 ~ /^- \[[xX]\] /) {
-              if (in_list==1) { print "</ul>"; in_list=0 }
               sub(/^- \[[xX]\] /, "")
               print "<div>✓ " $0 "</div>"
               next
             }
 
-            # Unchecked checklist
             if ($0 ~ /^- \[ \] /) {
-              if (in_list==1) { print "</ul>"; in_list=0 }
               sub(/^- \[ \] /, "")
               print "<div>☐ " $0 "</div>"
               next
             }
 
-            # Bullet list
+            if ($0 ~ /^  - /) {
+              sub(/^  - /, "")
+              print "<div style=\"margin-left:12px;\">• " $0 "</div>"
+              next
+            }
+
             if ($0 ~ /^- /) {
-              if (in_list==0) { print "<ul>"; in_list=1 }
               sub(/^- /, "")
-              print "<li>" $0 "</li>"
+              print "<div>• " $0 "</div>"
               next
             }
 
-            # Blank line
-            if (length($0)==0) {
-              if (in_list==1) { print "</ul>"; in_list=0 }
-              next
-            }
+            if (length($0)==0) { next }
 
-            # Paragraph
-            if (in_list==1) { print "</ul>"; in_list=0 }
             print "<div>" $0 "</div>"
-          }
-          END {
-            if (in_list==1) print "</ul>"
           }')
 
-          # Final HTML block
-          FINAL_HTML="<h2>Pull Request</h2><div><a href=\"$PR_URL\">$PR_URL</a></div>$HTML_BODY"
+          # Final HTML block (compact, still clearly titled)
+          FINAL_HTML="<div><strong>Pull Request</strong></div><div><a href=\"$PR_URL\">$PR_URL</a></div><div></div>$HTML_BODY"
 
           # Send update
           CREATE_UPDATE_PAYLOAD=$(jq -n \
