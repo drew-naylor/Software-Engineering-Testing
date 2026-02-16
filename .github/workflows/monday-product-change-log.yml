@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create Monday item and clean formatted update
+      - name: Create Monday item and HTML formatted update
         env:
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           MONDAY_BOARD_ID: ${{ secrets.MONDAY_PRODUCT_CHANGE_LOG_BOARD_ID }}
@@ -25,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Fetch author display name
+          # 1️⃣ Fetch author display name
           AUTHOR_NAME=$(curl -s \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -35,7 +35,7 @@ jobs:
             AUTHOR_NAME="$AUTHOR_LOGIN"
           fi
 
-          # Build Monday column values
+          # 2️⃣ Build Monday column values
           COLUMN_VALUES=$(jq -n \
             --arg author "$AUTHOR_NAME" \
             --arg product "Contact Centre" \
@@ -44,7 +44,7 @@ jobs:
               dropdown_mm0m14q0: { labels: [$product] }
             }' | jq -c .)
 
-          # Create item
+          # 3️⃣ Create Monday item
           CREATE_ITEM_PAYLOAD=$(jq -n \
             --arg query 'mutation ($boardId: ID!, $itemName: String!, $columnVals: JSON!) { create_item(board_id: $boardId, item_name: $itemName, column_values: $columnVals) { id } }' \
             --arg boardId "$MONDAY_BOARD_ID" \
@@ -65,20 +65,40 @@ jobs:
             exit 1
           fi
 
-          # Ensure PR body exists
+          # 4️⃣ Ensure PR body exists
           if [ -z "${PR_BODY:-}" ] || [ "$PR_BODY" = "null" ]; then
-            PR_BODY="(No PR description provided.)"
+            PR_BODY="No description provided."
           fi
 
-          # Remove markdown header symbols (#) and bold markers (**)
-          CLEAN_BODY=$(echo "$PR_BODY" \
-            | sed -E 's/^#+[[:space:]]*//g' \
-            | sed -E 's/\*\*//g')
+          # 5️⃣ Convert Markdown to Basic HTML
 
-          # Build clean update text with spacing
-          UPDATE_TEXT=$(printf "Pull Request:\n%s\n\n%s" "$PR_URL" "$CLEAN_BODY")
+          HTML_BODY=$(echo "$PR_BODY" | awk '
+          BEGIN { in_list=0 }
+          /^#/ {
+            if (in_list==1) { print "</ul>"; in_list=0 }
+            sub(/^#+[ \t]*/, "")
+            print "<h3>" $0 "</h3>"
+            next
+          }
+          /^- / {
+            if (in_list==0) { print "<ul>"; in_list=1 }
+            sub(/^- /, "")
+            print "<li>" $0 "</li>"
+            next
+          }
+          {
+            if (in_list==1) { print "</ul>"; in_list=0 }
+            if (length($0)==0) { print "<br>" }
+            else { print "<p>" $0 "</p>" }
+          }
+          END {
+            if (in_list==1) print "</ul>"
+          }')
 
-          # Create update
+          # 6️⃣ Build final formatted update
+          UPDATE_TEXT=$(printf "<h2>Pull Request</h2><p><a href=\"%s\">%s</a></p><hr>%s" "$PR_URL" "$PR_URL" "$HTML_BODY")
+
+          # 7️⃣ Send update to Monday
           CREATE_UPDATE_PAYLOAD=$(jq -n \
             --arg query 'mutation ($itemId: ID!, $body: String!) { create_update(item_id: $itemId, body: $body) { id } }' \
             --arg itemId "$ITEM_ID" \
@@ -98,4 +118,4 @@ jobs:
             exit 1
           fi
 
-          echo "Monday item created and update added successfully."
+          echo "Monday item created and formatted update added successfully."
