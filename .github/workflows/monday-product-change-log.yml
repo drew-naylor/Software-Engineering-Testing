@@ -25,6 +25,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "Resolving author name..."
+
           AUTHOR_NAME=$(curl -s \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -34,6 +36,9 @@ jobs:
             AUTHOR_NAME="$AUTHOR_LOGIN"
           fi
 
+          echo "Author: $AUTHOR_NAME"
+
+          # Build column values JSON
           COLUMN_VALUES=$(jq -n \
             --arg author "$AUTHOR_NAME" \
             --arg product "Contact Centre" \
@@ -41,6 +46,8 @@ jobs:
               text_mkv394b9: $author,
               dropdown_mm0m14q0: { labels: [$product] }
             }' | jq -c .)
+
+          echo "Creating Monday item..."
 
           CREATE_ITEM_PAYLOAD=$(jq -n \
             --arg query 'mutation ($boardId: ID!, $itemName: String!, $columnVals: JSON!) { create_item(board_id: $boardId, item_name: $itemName, column_values: $columnVals) { id } }' \
@@ -62,12 +69,16 @@ jobs:
             exit 1
           fi
 
+          echo "Item created: $ITEM_ID"
+
           if [ -z "${PR_BODY:-}" ] || [ "$PR_BODY" = "null" ]; then
             PR_BODY="No description provided."
           fi
 
+          # Remove markdown heading markers
           CLEAN_BODY=$(echo "$PR_BODY" | sed -E 's/^#+[[:space:]]*//g')
 
+          # Convert Markdown to HTML safely
           HTML_BODY=$(echo "$CLEAN_BODY" | awk '
           BEGIN { in_list=0 }
           {
@@ -111,7 +122,14 @@ jobs:
             if (in_list==1) print "</ul>"
           }')
 
-          UPDATE_TEXT=$(printf "%s" "<h2 style=\"margin-bottom:6px;\">Pull Request</h2><p><a href=\"$PR_URL\">$PR_URL</a></p><hr style=\"margin:12px 0;\">$HTML_BODY")
+          # Build HTML safely (avoid quote breakage)
+          FINAL_HTML="<h2 style='margin-bottom:6px;'>Pull Request</h2><p><a href='$PR_URL'>$PR_URL</a></p><hr style='margin:12px 0;'>$HTML_BODY"
+
+          # Encode to base64 to avoid shell parsing issues
+          ENCODED_HTML=$(printf "%s" "$FINAL_HTML" | base64 | tr -d '\n')
+
+          # Decode before sending
+          UPDATE_TEXT=$(printf "%s" "$ENCODED_HTML" | base64 -d)
 
           CREATE_UPDATE_PAYLOAD=$(jq -n \
             --arg query 'mutation ($itemId: ID!, $body: String!) { create_update(item_id: $itemId, body: $body) { id } }' \
@@ -126,4 +144,10 @@ jobs:
 
           UPDATE_ID=$(echo "$CREATE_UPDATE_RESP" | jq -r '.data.create_update.id')
 
-          if [ -z "$UPDATE_ID" ] || [ "$UPDATE_I_]()_]()
+          if [ -z "$UPDATE_ID" ] || [ "$UPDATE_ID" = "null" ]; then
+            echo "Failed to create Monday update"
+            echo "$CREATE_UPDATE_RESP"
+            exit 1
+          fi
+
+          echo "Success. Monday item created and formatted update added."
