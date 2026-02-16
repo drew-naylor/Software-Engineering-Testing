@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create Monday item and add PR update
+      - name: Create Monday item and add formatted PR update
         env:
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           MONDAY_BOARD_ID: ${{ secrets.MONDAY_PRODUCT_CHANGE_LOG_BOARD_ID }}
@@ -73,11 +73,19 @@ jobs:
 
           echo "Item created: $ITEM_ID"
 
+          # Ensure PR body exists
           if [ -z "${PR_BODY:-}" ] || [ "$PR_BODY" = "null" ]; then
             PR_BODY="(No PR description provided.)"
           fi
 
-          UPDATE_TEXT=$(printf "### Pull Request\n%s\n\n### Description\n%s" "$PR_URL" "$PR_BODY")
+          # Downgrade H1 headings to improve readability in Monday
+          CLEAN_BODY=$(echo "$PR_BODY" \
+            | sed 's/^# /## /' \
+            | sed 's/^## /### /' \
+            | sed 's/^### /#### /')
+
+          # Format final update with proper newlines
+          UPDATE_TEXT=$(printf "### 🔗 Pull Request\n%s\n\n---\n\n%s" "$PR_URL" "$CLEAN_BODY")
 
           echo "Adding update..."
 
