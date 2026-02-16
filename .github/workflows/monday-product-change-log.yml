@@ -70,15 +70,33 @@ jobs:
             PR_BODY="No description provided."
           fi
 
-          # Convert Markdown → HTML (tight spacing)
-          HTML_BODY=$(echo "$PR_BODY" | awk '
+          # Clean PR body:
+          # - Remove Copilot HTML comments
+          # - Remove '---' separators
+          # - Remove CRLF
+          # - Collapse multiple blank lines
+          CLEAN_BODY=$(echo "$PR_BODY" \
+            | sed '/<!--/,/-->/d' \
+            | sed '/^---$/d' \
+            | sed 's/\r//g' \
+            | awk 'NF{blank=0} !NF{blank++} blank<2')
+
+          # Convert Markdown → HTML (tight spacing, no block inflation)
+          HTML_BODY=$(echo "$CLEAN_BODY" | awk '
           BEGIN { in_list=0 }
           {
-            # Markdown H1 section
+            # Markdown section header
             if ($0 ~ /^# /) {
               if (in_list==1) { print "</ul>"; in_list=0 }
               sub(/^# /, "")
-              print "<h2 style=\"margin:14px 0 4px 0;\">" $0 "</h2>"
+              print "<h2>" $0 "</h2>"
+              next
+            }
+
+            # Nested bullet
+            if ($0 ~ /^  - /) {
+              sub(/^  - /, "")
+              print "<li style=\"margin-left:16px;\">" $0 "</li>"
               next
             }
 
@@ -86,7 +104,7 @@ jobs:
             if ($0 ~ /^- \[[xX]\] /) {
               if (in_list==1) { print "</ul>"; in_list=0 }
               sub(/^- \[[xX]\] /, "")
-              print "<p style=\"margin:2px 0;\">✓ " $0 "</p>"
+              print "<div>✓ " $0 "</div>"
               next
             }
 
@@ -94,35 +112,36 @@ jobs:
             if ($0 ~ /^- \[ \] /) {
               if (in_list==1) { print "</ul>"; in_list=0 }
               sub(/^- \[ \] /, "")
-              print "<p style=\"margin:2px 0;\">☐ " $0 "</p>"
+              print "<div>☐ " $0 "</div>"
               next
             }
 
-            # Standard bullet list
+            # Bullet list
             if ($0 ~ /^- /) {
-              if (in_list==0) { print "<ul style=\"margin:4px 0; padding-left:18px;\">"; in_list=1 }
+              if (in_list==0) { print "<ul>"; in_list=1 }
               sub(/^- /, "")
-              print "<li style=\"margin:3px 0;\">" $0 "</li>"
+              print "<li>" $0 "</li>"
               next
             }
 
-            # Skip blank lines
+            # Blank line
             if (length($0)==0) {
+              if (in_list==1) { print "</ul>"; in_list=0 }
               next
             }
 
             # Paragraph
             if (in_list==1) { print "</ul>"; in_list=0 }
-            print "<p style=\"margin:4px 0;\">" $0 "</p>"
+            print "<div>" $0 "</div>"
           }
           END {
             if (in_list==1) print "</ul>"
           }')
 
           # Final HTML block
-          FINAL_HTML="<h2 style='margin:0 0 4px 0;'>Pull Request</h2><p style='margin:0 0 12px 0;'><a href=\"$PR_URL\">$PR_URL</a></p>$HTML_BODY"
+          FINAL_HTML="<h2>Pull Request</h2><div><a href=\"$PR_URL\">$PR_URL</a></div>$HTML_BODY"
 
-          # Send update (jq safely escapes content)
+          # Send update
           CREATE_UPDATE_PAYLOAD=$(jq -n \
             --arg query 'mutation ($itemId: ID!, $body: String!) { create_update(item_id: $itemId, body: $body) { id } }' \
             --arg itemId "$ITEM_ID" \
