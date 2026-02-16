@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create Monday item and formatted update
+      - name: Create Monday item and clean formatted update
         env:
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           MONDAY_BOARD_ID: ${{ secrets.MONDAY_PRODUCT_CHANGE_LOG_BOARD_ID }}
@@ -35,7 +35,7 @@ jobs:
             AUTHOR_NAME="$AUTHOR_LOGIN"
           fi
 
-          # Build Monday column values (stringified JSON)
+          # Build Monday column values
           COLUMN_VALUES=$(jq -n \
             --arg author "$AUTHOR_NAME" \
             --arg product "Contact Centre" \
@@ -70,11 +70,13 @@ jobs:
             PR_BODY="(No PR description provided.)"
           fi
 
-          # Convert markdown headings (#) into bold section titles for cleaner Monday rendering
-          CLEAN_BODY=$(echo "$PR_BODY" | sed -E 's/^#+[[:space:]]*(.*)$/\n**\1**\n/')
+          # Remove markdown header symbols (#) and bold markers (**)
+          CLEAN_BODY=$(echo "$PR_BODY" \
+            | sed -E 's/^#+[[:space:]]*//g' \
+            | sed -E 's/\*\*//g')
 
-          # Build clean formatted update
-          UPDATE_TEXT=$(printf "**Pull Request**\n%s\n\n%s" "$PR_URL" "$CLEAN_BODY")
+          # Build clean update text with spacing
+          UPDATE_TEXT=$(printf "Pull Request:\n%s\n\n%s" "$PR_URL" "$CLEAN_BODY")
 
           # Create update
           CREATE_UPDATE_PAYLOAD=$(jq -n \
