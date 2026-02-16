@@ -1,0 +1,104 @@
+name: Monday Product Change Log (Merged PRs)
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  post_to_monday:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Monday item and add PR update
+        env:
+          MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
+          MONDAY_BOARD_ID: ${{ secrets.MONDAY_PRODUCT_CHANGE_LOG_BOARD_ID }}
+
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
+          AUTHOR_LOGIN: ${{ github.event.pull_request.user.login }}
+          GH_TOKEN: ${{ github.token }}
+
+        run: |
+          set -euo pipefail
+
+          echo "Fetching author display name..."
+
+          AUTHOR_NAME=$(curl -s \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/users/$AUTHOR_LOGIN" | jq -r '.name')
+
+          if [ -z "$AUTHOR_NAME" ] || [ "$AUTHOR_NAME" = "null" ]; then
+            AUTHOR_NAME="$AUTHOR_LOGIN"
+          fi
+
+          echo "Author resolved as: $AUTHOR_NAME"
+
+          echo "Building column values..."
+
+          COLUMN_VALUES=$(jq -n \
+            --arg author "$AUTHOR_NAME" \
+            --arg product "Contact Centre" \
+            '{
+              text_mkv394b9: $author,
+              dropdown_mm0m14q0: { labels: [$product] }
+            }' | jq -c .)
+
+          echo "Creating Monday item..."
+
+          CREATE_ITEM_PAYLOAD=$(jq -n \
+            --arg query 'mutation ($boardId: ID!, $itemName: String!, $columnVals: JSON!) { create_item(board_id: $boardId, item_name: $itemName, column_values: $columnVals) { id } }' \
+            --arg boardId "$MONDAY_BOARD_ID" \
+            --arg itemName "$PR_TITLE" \
+            --arg columnVals "$COLUMN_VALUES" \
+            '{query: $query, variables: {boardId: $boardId, itemName: $itemName, columnVals: $columnVals}}')
+
+          CREATE_ITEM_RESP=$(curl -s -X POST https://api.monday.com/v2 \
+            -H "Authorization: $MONDAY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$CREATE_ITEM_PAYLOAD")
+
+          echo "$CREATE_ITEM_RESP"
+
+          ITEM_ID=$(echo "$CREATE_ITEM_RESP" | jq -r '.data.create_item.id')
+
+          if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+            echo "Failed to create Monday item"
+            exit 1
+          fi
+
+          echo "Item created: $ITEM_ID"
+
+          if [ -z "${PR_BODY:-}" ] || [ "$PR_BODY" = "null" ]; then
+            PR_BODY="(No PR description provided.)"
+          fi
+
+          UPDATE_TEXT="PR: $PR_URL\n\n$PR_BODY"
+
+          echo "Adding update..."
+
+          CREATE_UPDATE_PAYLOAD=$(jq -n \
+            --arg query 'mutation ($itemId: ID!, $body: String!) { create_update(item_id: $itemId, body: $body) { id } }' \
+            --arg itemId "$ITEM_ID" \
+            --arg body "$UPDATE_TEXT" \
+            '{query: $query, variables: {itemId: $itemId, body: $body}}')
+
+          CREATE_UPDATE_RESP=$(curl -s -X POST https://api.monday.com/v2 \
+            -H "Authorization: $MONDAY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$CREATE_UPDATE_PAYLOAD")
+
+          echo "$CREATE_UPDATE_RESP"
+
+          UPDATE_ID=$(echo "$CREATE_UPDATE_RESP" | jq -r '.data.create_update.id')
+
+          if [ -z "$UPDATE_ID" ] || [ "$UPDATE_ID" = "null" ]; then
+            echo "Failed to create Monday update"
+            exit 1
+          fi
+
+          echo "Update added: $UPDATE_ID"
