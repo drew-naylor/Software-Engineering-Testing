@@ -77,7 +77,7 @@ jobs:
             PR_BODY="(No PR description provided.)"
           fi
 
-          UPDATE_TEXT=$(printf "PR: %s\n\n%s" "$PR_URL" "$PR_BODY")
+          UPDATE_TEXT=$(printf "### Pull Request\n%s\n\n### Description\n%s" "$PR_URL" "$PR_BODY")
 
           echo "Adding update..."
 
