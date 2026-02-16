@@ -25,7 +25,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1️⃣ Fetch author display name
           AUTHOR_NAME=$(curl -s \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -35,7 +34,6 @@ jobs:
             AUTHOR_NAME="$AUTHOR_LOGIN"
           fi
 
-          # 2️⃣ Build column values
           COLUMN_VALUES=$(jq -n \
             --arg author "$AUTHOR_NAME" \
             --arg product "Contact Centre" \
@@ -44,7 +42,6 @@ jobs:
               dropdown_mm0m14q0: { labels: [$product] }
             }' | jq -c .)
 
-          # 3️⃣ Create Monday item
           CREATE_ITEM_PAYLOAD=$(jq -n \
             --arg query 'mutation ($boardId: ID!, $itemName: String!, $columnVals: JSON!) { create_item(board_id: $boardId, item_name: $itemName, column_values: $columnVals) { id } }' \
             --arg boardId "$MONDAY_BOARD_ID" \
@@ -65,26 +62,21 @@ jobs:
             exit 1
           fi
 
-          # 4️⃣ Ensure PR body exists
           if [ -z "${PR_BODY:-}" ] || [ "$PR_BODY" = "null" ]; then
             PR_BODY="No description provided."
           fi
 
-          # 5️⃣ Remove markdown heading markers
           CLEAN_BODY=$(echo "$PR_BODY" | sed -E 's/^#+[[:space:]]*//g')
 
-          # 6️⃣ Convert Markdown → HTML
           HTML_BODY=$(echo "$CLEAN_BODY" | awk '
           BEGIN { in_list=0 }
           {
-            # Section header (short single-line heading)
-            if ($0 ~ /^[A-Za-z ]+$/ && length($0) < 50) {
+            if ($0 ~ /^[A-Za-z ]+$/ && length($0) < 60) {
               if (in_list==1) { print "</ul>"; in_list=0 }
               print "<h3 style=\"margin:10px 0 4px 0;\">" $0 "</h3>"
               next
             }
 
-            # Checked checklist
             if ($0 ~ /^- \[[xX]\] /) {
               if (in_list==1) { print "</ul>"; in_list=0 }
               sub(/^- \[[xX]\] /, "")
@@ -92,7 +84,6 @@ jobs:
               next
             }
 
-            # Unchecked checklist
             if ($0 ~ /^- \[ \] /) {
               if (in_list==1) { print "</ul>"; in_list=0 }
               sub(/^- \[ \] /, "")
@@ -100,7 +91,6 @@ jobs:
               next
             }
 
-            # Standard bullet
             if ($0 ~ /^- /) {
               if (in_list==0) { print "<ul style=\"margin:4px 0;\">"; in_list=1 }
               sub(/^- /, "")
@@ -108,14 +98,12 @@ jobs:
               next
             }
 
-            # Blank line
             if (length($0)==0) {
               if (in_list==1) { print "</ul>"; in_list=0 }
               print "<br>"
               next
             }
 
-            # Paragraph
             if (in_list==1) { print "</ul>"; in_list=0 }
             print "<p style=\"margin:4px 0;\">" $0 "</p>"
           }
@@ -123,13 +111,8 @@ jobs:
             if (in_list==1) print "</ul>"
           }')
 
-          # 7️⃣ Build final formatted update
-          UPDATE_TEXT=$(printf "<h2 style=\"margin-bottom:6px;\">Pull Request</h2>
-<p><a href=\"%s\">%s</a></p>
-<hr style=\"margin:12px 0;\">
-%s" "$PR_URL" "$PR_URL" "$HTML_BODY")
+          UPDATE_TEXT=$(printf "%s" "<h2 style=\"margin-bottom:6px;\">Pull Request</h2><p><a href=\"$PR_URL\">$PR_URL</a></p><hr style=\"margin:12px 0;\">$HTML_BODY")
 
-          # 8️⃣ Send update to Monday
           CREATE_UPDATE_PAYLOAD=$(jq -n \
             --arg query 'mutation ($itemId: ID!, $body: String!) { create_update(item_id: $itemId, body: $body) { id } }' \
             --arg itemId "$ITEM_ID" \
@@ -143,10 +126,4 @@ jobs:
 
           UPDATE_ID=$(echo "$CREATE_UPDATE_RESP" | jq -r '.data.create_update.id')
 
-          if [ -z "$UPDATE_ID" ] || [ "$UPDATE_ID" = "null" ]; then
-            echo "Failed to create Monday update"
-            echo "$CREATE_UPDATE_RESP"
-            exit 1
-          fi
-
-          echo "Monday item created and formatted update added successfully."
+          if [ -z "$UPDATE_ID" ] || [ "$UPDATE_I_]()_]()
