@@ -1,7 +1,6 @@
 name: Triage Bug Report
 description: Template for reporting bugs, defects, and product issues
 labels: ["bug", "needs triage"]
-type: bug
 body:
   - type: markdown
     attributes:
