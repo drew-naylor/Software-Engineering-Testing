@@ -1,0 +1,218 @@
+name: Triage Bug Report
+description: Template for reporting bugs, defects, and product issues
+labels: ["bug", "needs triage"]
+type: bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug Report
+        Use this template to report bugs, defects, or product issues. Please provide as much detail as possible to help with triage and resolution.
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Reporter Details
+
+  - type: input
+    id: date-reported
+    attributes:
+      label: Date Reported
+      description: Date the customer reported the issue
+      placeholder: DD/MM/YYYY
+    validations:
+      required: true
+
+  - type: input
+    id: date-time-of-issue
+    attributes:
+      label: Date/Time of Issue
+      description: Date and time the issue occurred
+      placeholder: DD/MM/YYYY HH:MM
+    validations:
+      required: true
+
+  - type: input
+    id: employee-name
+    attributes:
+      label: Employee Name
+      description: Name of the person escalating the issue to development
+    validations:
+      required: true
+
+  - type: input
+    id: client-contact-name
+    attributes:
+      label: Client - Contact Name
+      description: The contact at the client who raised the issue (MaxContact employee if not raised by a client directly)
+    validations:
+      required: true
+
+  - type: input
+    id: client-company
+    attributes:
+      label: Client - Company
+      description: The client name. For non-customer systems this should be N/A
+    validations:
+      required: true
+
+  - type: input
+    id: system-url
+    attributes:
+      label: System URL
+      description: The URL of the MaxContact system
+      placeholder: https://
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version number the system is on at time of the issue being reported
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Issue Overview
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: What is the issue?
+      description: Detail the overall issue at a high level
+      placeholder: Describe the issue...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: recent-upgrade
+    attributes:
+      label: Has the issue occurred since a recent upgrade?
+      description: This is important to understand if this has been caused due to a system upgrade
+      options:
+        - "Yes"
+        - "No"
+        - Unknown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ever-behaved-as-expected
+    attributes:
+      label: Has the system ever behaved in the way the client expects?
+      description: This will impact the wider impact of resolving the issue for the client
+      options:
+        - "Yes"
+        - "No"
+        - Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: recently-behaved-as-expected
+    attributes:
+      label: Has the system behaved in the way the client expects recently?
+      description: If yes, when? If this has not worked as expected for a considerable period of time, this will impact the wider impact of resolving the issue for the client
+      placeholder: Yes/No — with detail on when it last worked as expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact-severity
+    attributes:
+      label: What is the impact/severity of the issue to the client and why?
+      description: What is the impact of this issue on the users of the system
+    validations:
+      required: true
+
+  - type: textarea
+    id: other-systems
+    attributes:
+      label: Has this issue occurred on any other systems?
+      description: If so, please detail. This provides an understanding of whether this is unique to this customer or a wider issue
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Replication
+
+  - type: dropdown
+    id: able-to-replicate
+    attributes:
+      label: Are you able to replicate?
+      description: If you can replicate, provide detail of what system and on what version in the steps below
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: textarea
+    id: replication-steps
+    attributes:
+      label: What are the replication steps?
+      description: Provide a step-by-step journey of how to replicate the issue
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround-steps
+    attributes:
+      label: Have any steps been taken to resolve or work around the issue?
+      description: This provides additional context around what has been done to attempt to fix the issue and the current severity for the client
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Supporting Evidence
+
+  - type: textarea
+    id: browser-errors
+    attributes:
+      label: Are there any errors in the browser?
+      description: If so, please detail and attach (Press F12). Errors provide key detail around what was occurring at the time of the issue
+    validations:
+      required: false
+
+  - type: dropdown
+    id: screenshot-video
+    attributes:
+      label: Do you have a screenshot and/or video of the issue?
+      description: Visual evidence helps people see the problem. Attach in the Additional Context section below
+      options:
+        - "Yes — attached below"
+        - "No"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: logs-attached
+    attributes:
+      label: Have logs been attached to the ticket?
+      description: All logs up to and including the time period. Logs provide key detail around what occurred before and at the time of the issue — specifically useful if an issue cannot be replicated
+      options:
+        - "Yes — attached below"
+        - "No"
+        - "Not applicable"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Attach screenshots, videos, logs, or any other information that might be helpful
+      placeholder: Drag and drop files here, or add any additional information...
+    validations:
+      required: false
